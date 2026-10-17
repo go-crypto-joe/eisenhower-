@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Eisenhower">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDF1F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1A1F" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Eisenhower Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+  /* Layout: a capture tray (Inbox) above a 2x2 urgency/importance grid; the grid stacks to one column on phones. */
+  :root {
+    --bg: #EDF1F3;
+    --surface: #FFFFFF;
+    --ink: #13232B;
+    --muted: #586A73;
+    --line: #D2DBE0;
+    --accent: #0C6678;
+    --accent-ink: #FFFFFF;
+    --warn: #B3261E;
+
+    --do-bg: #FBE4DD;   --do-fg: #8F2B14;   --do-edge: #EFC1B4;
+    --plan-bg: #DFECF8; --plan-fg: #1A507F; --plan-edge: #B9D3EA;
+    --del-bg: #FBF0D0;  --del-fg: #715000;  --del-edge: #EBD79C;
+    --drop-bg: #E7EBED; --drop-fg: #46565E; --drop-edge: #CAD3D8;
+
+    --f-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+    --f-body: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    --f-mono: 'DM Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1A1F;
+      --surface: #1A2B33;
+      --ink: #E6EEF1;
+      --muted: #8FA3AC;
+      --line: #2C414B;
+      --accent: #4FC1D3;
+      --accent-ink: #08242A;
+      --warn: #FF8A80;
+
+      --do-bg: #3A1D17;   --do-fg: #FFA38C;   --do-edge: #5C2F25;
+      --plan-bg: #14283A; --plan-fg: #92C5F2; --plan-edge: #25435E;
+      --del-bg: #33290F;  --del-fg: #EBCB74;  --del-edge: #54441C;
+      --drop-bg: #222D33; --drop-fg: #A9B8BF; --drop-edge: #36454D;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1A1F;
+    --surface: #1A2B33;
+    --ink: #E6EEF1;
+    --muted: #8FA3AC;
+    --line: #2C414B;
+    --accent: #4FC1D3;
+    --accent-ink: #08242A;
+    --warn: #FF8A80;
+
+    --do-bg: #3A1D17;   --do-fg: #FFA38C;   --do-edge: #5C2F25;
+    --plan-bg: #14283A; --plan-fg: #92C5F2; --plan-edge: #25435E;
+    --del-bg: #33290F;  --del-fg: #EBCB74;  --del-edge: #54441C;
+    --drop-bg: #222D33; --drop-fg: #A9B8BF; --drop-edge: #36454D;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  body.dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding-block: 20px 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  /* Header */
+  .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 4px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(28px, 6.4vw, 42px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .status {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status[data-state="ok"]::before { background: var(--accent); }
+  .status[data-state="err"] { color: var(--warn); }
+  .status[data-state="err"]::before { background: var(--warn); }
+
+  /* Add form */
+  .add { display: flex; gap: 8px; margin: 18px 0 14px; }
+  .add input {
+    flex: 1;
+    min-width: 0;
+    height: 46px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .add input::placeholder { color: var(--muted); }
+  .add button {
+    height: 46px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* Notice and tools */
+  .notice {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .linkbtn {
+    background: none; border: 0; padding: 4px 2px;
+    color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  /* Zones */
+  .board.booting { pointer-events: none; opacity: 0.55; }
+  .zone {
+    --zbg: var(--surface); --zfg: var(--ink); --zedge: var(--line);
+    background: var(--zbg);
+    border: 1px solid var(--zedge);
+    border-radius: 14px;
+    padding: 12px;
+    min-width: 0;
+  }
+  .zone[data-q="do"]       { --zbg: var(--do-bg);   --zfg: var(--do-fg);   --zedge: var(--do-edge); }
+  .zone[data-q="plan"]     { --zbg: var(--plan-bg); --zfg: var(--plan-fg); --zedge: var(--plan-edge); }
+  .zone[data-q="delegate"] { --zbg: var(--del-bg);  --zfg: var(--del-fg);  --zedge: var(--del-edge); }
+  .zone[data-q="drop"]     { --zbg: var(--drop-bg); --zfg: var(--drop-fg); --zedge: var(--drop-edge); }
+  .zone.tray { --zbg: transparent; --zfg: var(--ink); border-style: dashed; margin-bottom: 14px; }
+  .zone.over { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .zhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .zhead h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin: 0;
+    color: var(--zfg);
+  }
+  .zsub {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--zfg);
+    opacity: 0.8;
+    margin: 4px 0 0;
+  }
+  .count {
+    font-family: var(--f-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    min-width: 26px;
+    text-align: center;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--zedge);
+  }
+  .count.warn { color: var(--warn); border-color: var(--warn); }
+  .zhint { margin: 8px 0 10px; font-size: 13px; color: var(--zfg); opacity: 0.85; }
+  .tray .zhint { color: var(--muted); }
+
+  .list { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+  .tray .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+  .list:empty {
+    align-items: center; justify-content: center;
+    border: 1px dashed var(--zedge);
+    border-radius: 10px;
+    color: var(--zfg);
+    opacity: 0.7;
+    font-size: 13px;
+    text-align: center;
+    padding: 14px;
+  }
+  .list:empty::before { content: attr(data-empty); }
+
+  /* Matrix grid with axis labels */
+  .matrix {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .axis {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    align-self: center;
+  }
+  .ax-side { writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; }
+  @media (max-width: 599px) {
+    .matrix { grid-template-columns: minmax(0, 1fr); }
+    .axis, .corner { display: none; }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 6px 6px 6px 8px;
+    min-width: 0;
+  }
+  .crow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .chk {
+    flex: none;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    background: transparent;
+    color: transparent;
+    display: grid; place-items: center;
+    padding: 0;
+  }
+  .card.done .chk { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .txt {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    background: none; border: 0;
+    padding: 8px 2px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .card.done .txt { text-decoration: line-through; color: var(--muted); }
+  .grip {
+    flex: none;
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    border-radius: 8px;
+    touch-action: none;
+    cursor: grab;
+  }
+  .grip:hover { background: var(--bg); }
+
+  .panel { padding: 4px 4px 6px; display: flex; flex-direction: column; gap: 10px; }
+  .panel .edit {
+    width: 100%; height: 40px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg);
+  }
+  .moves { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .moves .lbl { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+  .mv {
+    height: 34px; padding: 0 12px;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 13px; font-weight: 500;
+  }
+  .mv-do { background: var(--do-bg); color: var(--do-fg); border-color: var(--do-edge); }
+  .mv-plan { background: var(--plan-bg); color: var(--plan-fg); border-color: var(--plan-edge); }
+  .mv-delegate { background: var(--del-bg); color: var(--del-fg); border-color: var(--del-edge); }
+  .mv-drop { background: var(--drop-bg); color: var(--drop-fg); border-color: var(--drop-edge); }
+  .del { align-self: flex-start; background: none; border: 0; padding: 4px 2px; color: var(--warn); font-weight: 600; font-size: 13px; }
+
+  /* Drag states */
+  .card.lifted { opacity: 0.3; }
+  .card.mark-before { box-shadow: 0 -4px 0 0 var(--accent); }
+  .card.mark-after { box-shadow: 0 4px 0 0 var(--accent); }
+  .ghost {
+    position: fixed; left: 0; top: 0; z-index: 50;
+    pointer-events: none;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+    opacity: 0.97;
+    border-color: var(--accent);
+  }
+
+  .foot {
+    margin-top: 18px;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .foot p { margin: 0; max-width: 62ch; }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <p class="eyebrow" id="eyebrow">Planning for tomorrow</p>
+      <h1 id="date">Tomorrow</h1>
+    </div>
+    <div class="status" id="status" data-state="" role="status">Loading…</div>
+  </header>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="addInput" type="text" maxlength="200" placeholder="Add a task for the inbox" aria-label="New task">
+    <button type="submit">Add</button>
+  </form>
+
+  <div class="notice" id="sampleBar" hidden>
+    <span>These are example tasks. Add your own, then clear the examples.</span>
+    <button type="button" class="linkbtn" id="clearSamples">Clear examples</button>
+  </div>
+
+  <main class="board booting" id="board" aria-busy="true">
+    <section class="zone tray" data-q="inbox" aria-labelledby="zt-inbox">
+      <header class="zhead">
+        <div>
+          <h2 id="zt-inbox">Inbox</h2>
+          <p class="zsub">Not sorted yet</p>
+        </div>
+        <span class="count" id="c-inbox">0</span>
+      </header>
+      <p class="zhint">Get everything out of your head first, then drag each task into a box below.</p>
+      <div class="list" data-empty="Inbox is empty. Add a task above."></div>
+    </section>
+
+    <div class="matrix">
+      <div class="corner"></div>
+      <div class="axis">Urgent</div>
+      <div class="axis">Not urgent</div>
+
+      <div class="axis ax-side">Important</div>
+      <section class="zone" data-q="do" aria-labelledby="zt-do">
+        <header class="zhead">
+          <div><h2 id="zt-do">Do first</h2><p class="zsub">Urgent · Important</p></div>
+          <span class="count" id="c-do" title="Aim for three or fewer">0</span>
+        </header>
+        <p class="zhint">Do these tomorrow. Aim for three or fewer.</p>
+        <div class="list" data-empty="Drop a task here"></div>
+      </section>
+      <section class="zone" data-q="plan" aria-labelledby="zt-plan">
+        <header class="zhead">
+          <div><h2 id="zt-plan">Schedule</h2><p class="zsub">Not urgent · Important</p></div>
+          <span class="count" id="c-plan">0</span>
+        </header>
+        <p class="zhint">Pick a day and a time block for each.</p>
+        <div class="list" data-empty="Drop a task here"></div>
+      </section>
+
+      <div class="axis ax-side">Not important</div>
+      <section class="zone" data-q="delegate" aria-labelledby="zt-delegate">
+        <header class="zhead">
+          <div><h2 id="zt-delegate">Delegate</h2><p class="zsub">Urgent · Not important</p></div>
+          <span class="count" id="c-delegate">0</span>
+        </header>
+        <p class="zhint">Hand it off, or batch it into one short stretch.</p>
+        <div class="list" data-empty="Drop a task here"></div>
+      </section>
+      <section class="zone" data-q="drop" aria-labelledby="zt-drop">
+        <header class="zhead">
+          <div><h2 id="zt-drop">Drop</h2><p class="zsub">Not urgent · Not important</p></div>
+          <span class="count" id="c-drop">0</span>
+        </header>
+        <p class="zhint">Say no, or cut it from the list.</p>
+        <div class="list" data-empty="Drop a task here"></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="foot">
+    <p>Urgent means it needs action tomorrow. Important means it moves forward something you care about. Drag a task by its handle, or tap a task to move, rename or delete it.</p>
+    <button type="button" class="linkbtn" id="clearDone" hidden>Clear done</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var Q = ['inbox', 'do', 'plan', 'delegate', 'drop'];
+  var NAME = { inbox: 'Inbox', 'do': 'Do first', plan: 'Schedule', delegate: 'Delegate', drop: 'Drop' };
+  var LS_KEY = 'eisenhower-board-v1';
+  var ICON_CHECK = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var ICON_GRIP = '<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg>';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var board = $('board');
+  var statusEl = $('status');
+  var sampleBar = $('sampleBar');
+  var clearBtn = $('clearDone');
+  var lists = {}, counts = {};
+  Q.forEach(function (q) {
+    lists[q] = document.querySelector('.zone[data-q="' + q + '"] .list');
+    counts[q] = $('c-' + q);
+  });
+
+  /* Heading: before noon the plan is for today, after noon it is for tomorrow. */
+  (function () {
+    var now = new Date();
+    var later = now.getHours() >= 12;
+    var d = new Date(now);
+    if (later) d.setDate(d.getDate() + 1);
+    $('eyebrow').textContent = later ? 'Planning for tomorrow' : 'Planning for today';
+    $('date').textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  })();
+
+  function newId() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function samples() {
+    return [
+      { id: 's1', text: 'Pick up dry cleaning', q: 'inbox', done: false, sample: true },
+      { id: 's2', text: 'Prep slides for Thursday review', q: 'inbox', done: false, sample: true },
+      { id: 's3', text: 'Submit expense report before 9 AM', q: 'do', done: false, sample: true },
+      { id: 's4', text: 'Call pharmacy about refill', q: 'do', done: false, sample: true },
+      { id: 's5', text: 'Outline the Q4 project plan', q: 'plan', done: false, sample: true },
+      { id: 's6', text: 'Book dentist appointment', q: 'plan', done: false, sample: true },
+      { id: 's7', text: 'Set up the team sync', q: 'delegate', done: false, sample: true },
+      { id: 's8', text: 'Reorganize old photo folders', q: 'drop', done: false, sample: true }
+    ];
+  }
+
+  function clean(t) {
+    if (!t || typeof t.text !== 'string') return null;
+    var q = Q.indexOf(t.q) >= 0 ? t.q : 'inbox';
+    var o = { id: String(t.id || newId()), text: t.text.slice(0, 200), q: q, done: !!t.done };
+    if (t.sample) o.sample = true;
+    return o;
+  }
+  function cleanList(arr) {
+    return (Array.isArray(arr) ? arr : []).map(clean).filter(Boolean);
+  }
+
+  var tasks = samples();
+  var open = null;          // id of the task whose panel is expanded
+  var dragging = false;
+  var justDragged = false;
+  var ready = false;
+  var ref = null;           // db document, or null when saving on this device only
+  var dirty = false, saving = false, saveTimer = null;
+
+  function setStatus(text, state) {
+    statusEl.textContent = text;
+    statusEl.dataset.state = state || '';
+  }
+
+  /* ---------- Rendering ---------- */
+  function cardEl(t) {
+    var c = document.createElement('div');
+    c.className = 'card' + (t.done ? ' done' : '') + (open === t.id ? ' open' : '');
+    c.dataset.id = t.id;
+
+    var row = document.createElement('div');
+    row.className = 'crow';
+
+    var chk = document.createElement('button');
+    chk.type = 'button';
+    chk.className = 'chk';
+    chk.dataset.act = 'check';
+    chk.setAttribute('aria-pressed', String(!!t.done));
+    chk.setAttribute('aria-label', (t.done ? 'Mark not done: ' : 'Mark done: ') + t.text);
+    chk.innerHTML = ICON_CHECK;
+
+    var txt = document.createElement('button');
+    txt.type = 'button';
+    txt.className = 'txt';
+    txt.dataset.act = 'open';
+    txt.setAttribute('aria-expanded', String(open === t.id));
+    txt.textContent = t.text;
+
+    var grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.setAttribute('role', 'img');
+    grip.setAttribute('aria-label', 'Drag to move');
+    grip.innerHTML = ICON_GRIP;
+
+    row.append(chk, txt, grip);
+    c.append(row);
+
+    if (open === t.id) {
+      var p = document.createElement('div');
+      p.className = 'panel';
+
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'edit';
+      inp.id = 'edit-' + t.id;
+      inp.maxLength = 200;
+      inp.value = t.text;
+      inp.setAttribute('aria-label', 'Task name');
+
+      var mv = document.createElement('div');
+      mv.className = 'moves';
+      var lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = 'Move to';
+      mv.append(lbl);
+      Q.forEach(function (q) {
+        if (q === t.q) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mv mv-' + q;
+        b.dataset.act = 'move';
+        b.dataset.q = q;
+        b.textContent = NAME[q];
+        mv.append(b);
+      });
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'del';
+      del.dataset.act = 'del';
+      del.textContent = 'Delete task';
+
+      p.append(inp, mv, del);
+      c.append(p);
+    }
+    return c;
+  }
+
+  function render() {
+    Q.forEach(function (q) {
+      var items = tasks.filter(function (t) { return t.q === q; });
+      lists[q].replaceChildren.apply(lists[q], items.map(cardEl));
+      counts[q].textContent = items.filter(function (t) { return !t.done; }).length;
+    });
+    counts['do'].classList.toggle('warn', Number(counts['do'].textContent) > 3);
+    sampleBar.hidden = !tasks.some(function (t) { return t.sample; });
+    var dn = tasks.filter(function (t) { return t.done; }).length;
+    clearBtn.hidden = dn === 0;
+    clearBtn.textContent = 'Clear done (' + dn + ')';
+  }
+
+  /* ---------- Saving ---------- */
+  function lsRead() {
+    try {
+      var j = JSON.parse(localStorage.getItem(LS_KEY));
+      return j && Array.isArray(j.tasks) ? cleanList(j.tasks) : null;
+    } catch (e) { return null; }
+  }
+  function lsWrite() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ tasks: tasks })); return true; } catch (e) { return false; }
+  }
+
+  function scheduleSave() {
+    dirty = true;
+    setStatus('Saving…', '');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 350);
+  }
+
+  async function flush() {
+    if (saving || !dirty) return;
+    saving = true;
+    dirty = false;
+    var copy = tasks.map(function (t) { return Object.assign({}, t); });
+    try {
+      if (ref) {
+        await ref.set({ v: 1, tasks: copy });
+        setStatus('All changes saved', 'ok');
+      } else {
+        var okLocal = lsWrite();
+        setStatus(okLocal ? 'Saved on this phone' : 'Could not save', okLocal ? 'ok' : 'err');
+      }
+    } catch (e) {
+      var code = e && e.code;
+      setStatus(code === 'invalid_argument' || code === 'revoked' ? 'View only. Changes are not saved.' : 'Could not save', 'err');
+    } finally {
+      saving = false;
+      if (dirty) scheduleSave();
+    }
+  }
+
+  function changed() {
+    render();
+    scheduleSave();
+  }
+
+  function moveTask(id, q, refId, after) {
+    var i = tasks.findIndex(function (t) { return t.id === id; });
+    if (i < 0) return;
+    var t = tasks.splice(i, 1)[0];
+    t.q = q;
+    var at = -1;
+    if (refId) {
+      at = tasks.findIndex(function (x) { return x.id === refId; });
+      if (at >= 0 && after) at++;
+    }
+    if (at < 0) tasks.push(t); else tasks.splice(at, 0, t);
+  }
+
+  /* ---------- Clicks and edits ---------- */
+  board.addEventListener('click', function (e) {
+    if (justDragged) return;
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var card = b.closest('.card');
+    var id = card && card.dataset.id;
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var act = b.dataset.act;
+    if (act === 'check') {
+      t.done = !t.done;
+      changed();
+    } else if (act === 'open') {
+      open = open === id ? null : id;
+      render();
+    } else if (act === 'move') {
+      moveTask(id, b.dataset.q);
+      open = null;
+      changed();
+    } else if (act === 'del') {
+      tasks = tasks.filter(function (x) { return x.id !== id; });
+      open = null;
+      changed();
+    }
+  });
+
+  board.addEventListener('change', function (e) {
+    var i = e.target.closest && e.target.closest('input.edit');
+    if (!i) return;
+    var card = i.closest('.card');
+    var t = tasks.find(function (x) { return x.id === card.dataset.id; });
+    if (!t) return;
+    var v = i.value.trim().slice(0, 200);
+    if (v && v !== t.text) { t.text = v; changed(); } else { i.value = t.text; }
+  });
+  board.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.matches && e.target.matches('input.edit')) e.target.blur();
+  });
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = $('addInput');
+    var v = input.value.trim().slice(0, 200);
+    if (!v) return;
+    tasks.push({ id: newId(), text: v, q: 'inbox', done: false });
+    input.value = '';
+    changed();
+    input.focus();
+  });
+  $('clearSamples').addEventListener('click', function () {
+    tasks = tasks.filter(function (t) { return !t.sample; });
+    open = null;
+    changed();
+  });
+  clearBtn.addEventListener('click', function () {
+    tasks = tasks.filter(function (t) { return !t.done; });
+    open = null;
+    changed();
+  });
+
+  /* ---------- Drag and drop (pointer events: mouse, touch and pen) ---------- */
+  var drag = null, raf = 0;
+
+  function clearMarks() {
+    document.querySelectorAll('.over, .mark-before, .mark-after').forEach(function (el) {
+      el.classList.remove('over', 'mark-before', 'mark-after');
+    });
+  }
+
+  board.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0) return;
+    var card = e.target.closest('.card');
+    if (!card) return;
+    var grip = e.target.closest('.grip');
+    var mouseBody = e.pointerType === 'mouse' && !e.target.closest('input, .panel, .chk');
+    if (!grip && !mouseBody) return;
+    if (e.pointerType === 'mouse') e.preventDefault();
+    drag = {
+      id: card.dataset.id, card: card, pid: e.pointerId, src: grip || card,
+      sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY,
+      started: false, drop: null, ghost: null, ox: 0, oy: 0
+    };
+  });
+
+  function startDrag() {
+    var r = drag.card.getBoundingClientRect();
+    drag.ox = drag.sx - r.left;
+    drag.oy = drag.sy - r.top;
+    var g = drag.card.cloneNode(true);
+    var pn = g.querySelector('.panel');
+    if (pn) pn.remove();
+    g.classList.add('ghost');
+    g.style.width = r.width + 'px';
+    document.body.append(g);
+    drag.ghost = g;
+    drag.card.classList.add('lifted');
+    document.body.classList.add('dragging');
+    try { drag.src.setPointerCapture(drag.pid); } catch (err) {}
+    drag.started = true;
+    dragging = true;
+    raf = requestAnimationFrame(tick);
+  }
+
+  function placeGhost() {
+    drag.ghost.style.transform = 'translate(' + (drag.x - drag.ox) + 'px,' + (drag.y - drag.oy) + 'px) scale(1.02)';
+  }
+
+  function updateTarget() {
+    clearMarks();
+    drag.drop = null;
+    var el = document.elementFromPoint(drag.x, drag.y);
+    var zone = el && el.closest('.zone');
+    if (!zone) return;
+    zone.classList.add('over');
+    var c = el.closest('.card');
+    if (c && c.dataset.id === drag.id) return;
+    if (c) {
+      var r = c.getBoundingClientRect();
+      var after = drag.y > r.top + r.height / 2;
+      c.classList.add(after ? 'mark-after' : 'mark-before');
+      drag.drop = { q: zone.dataset.q, ref: c.dataset.id, after: after };
+    } else {
+      drag.drop = { q: zone.dataset.q, ref: null, after: false };
+    }
+  }
+
+  function tick() {
+    if (!drag || !drag.started) return;
+    var m = 80, vh = window.innerHeight;
+    if (drag.y < m) window.scrollBy(0, -Math.ceil((m - drag.y) / 5));
+    else if (drag.y > vh - m) window.scrollBy(0, Math.ceil((drag.y - (vh - m)) / 5));
+    updateTarget();
+    raf = requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    if (!drag.started) {
+      if (Math.hypot(drag.x - drag.sx, drag.y - drag.sy) < 5) return;
+      startDrag();
+    }
+    placeGhost();
+  }, { passive: true });
+
+  function endDrag(commit) {
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(raf);
+    if (!d) return;
+    if (d.started) {
+      try { d.src.releasePointerCapture(d.pid); } catch (err) {}
+      dragging = false;
+      d.ghost.remove();
+      clearMarks();
+      document.body.classList.remove('dragging');
+      d.card.classList.remove('lifted');
+      justDragged = true;
+      setTimeout(function () { justDragged = false; }, 0);
+      if (commit && d.drop) {
+        moveTask(d.id, d.drop.q, d.drop.ref, d.drop.after);
+        open = null;
+        changed();
+      }
+    }
+  }
+  window.addEventListener('pointerup', function (e) {
+    if (drag && e.pointerId === drag.pid) endDrag(true);
+  });
+  window.addEventListener('pointercancel', function (e) {
+    if (drag && e.pointerId === drag.pid) endDrag(false);
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drag) endDrag(false);
+  });
+
+  /* ---------- Startup ---------- */
+  function setReady() {
+    if (ready) return;
+    ready = true;
+    board.classList.remove('booting');
+    board.removeAttribute('aria-busy');
+    render();
+    if (!dirty && !saving) setStatus('Saved on this phone', 'ok');
+  }
+
+  function useLocal() {
+    ref = null;
+    var t = lsRead();
+    if (t) tasks = t;
+    setReady();
+  }
+
+  function onSnap(snap) {
+    if (dragging) return;
+    var data = snap.exists ? snap.data() : null;
+    if (!ready) {
+      if (data && Array.isArray(data.tasks)) {
+        tasks = cleanList(data.tasks);
+        setReady();
+      } else if (!snap.metadata.fromCache) {
+        setReady();
+      }
+      return;
+    }
+    if (dirty || saving || !data || !Array.isArray(data.tasks)) return;
+    var incoming = cleanList(data.tasks);
+    if (JSON.stringify(incoming) === JSON.stringify(tasks)) return;
+    tasks = incoming;
+    render();
+  }
+
+  render();
+  useLocal();
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
